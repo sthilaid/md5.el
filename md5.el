@@ -99,12 +99,18 @@
         (setq d c)
         (setq c b)
         (setq b (md5-add b (md5-leftrotate f s)))
-        (md5-debug (format "[%d] i: %d m_i: %X A: %X B: %X C: %X D: %X T: %X s: %d" i block-index m a b c d tt s))
+        ;(md5-debug (format "[%d] i: %d m_i: %X A: %X B: %X C: %X D: %X T: %X s: %d" i block-index m a b c d tt s))
         ))
     (vector (md5-add a a0) (md5-add b b0) (md5-add c c0) (md5-add d d0))))
 
+(defun md5-bytify (n)
+  (if (<= n #xFF)
+      (cons n nil)
+    (cons (logand n #xFF)
+          (md5-bytify (lsh n -8)))))
+
 (defun md5-pad (msg)
-  (let* ((bitcount (* (length msg) 8)) ; assuming single byte characters
+  (let* ((bitcount (* (length msg) 8))  ; assuming single byte characters
          (bitcount-pad (list (logand bitcount #xFF)
                              (lsh (logand bitcount #xFF00) -8)
                              (lsh (logand bitcount #xFF0000) -16)
@@ -118,8 +124,9 @@
     (if (< missing-bits 0) (setq missing-bits (+ missing-bits 512)))
     (let ((pad-zeroes (make-list (/ missing-bits 8) #x00)))
       (setcar pad-zeroes #x80)
-      (append msg pad-zeroes bitcount-pad))))
-
+      (append (seq-reduce 'append (mapcar (lambda (x) (seq-reverse (md5-bytify x))) msg) '())
+              pad-zeroes
+              bitcount-pad))))
 
 (defun md5-inv-endian (x)
   (format "%02x%02x%02x%02x"
@@ -139,6 +146,8 @@
          (d0 #x10325476)
          (padded-msg (md5-pad str))
          (itr-count (/ (length padded-msg) 64)))
+    (md5-debug (format "message: %s" (mapcar (lambda (x) (format "%02X" x)) str)))
+    (md5-debug (format "padded message: %s" (mapcar (lambda (x) (format "%02X" x)) padded-msg)))
     (dotimes (i itr-count)
       (let* ((chunk-512 (seq-subseq padded-msg (* i 64) (* (+ i 1) 64)))
              (result (md5-apply-step a0 b0 c0 d0 chunk-512)))
