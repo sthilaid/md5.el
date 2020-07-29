@@ -128,12 +128,11 @@
           (lsh (logand x #xFF0000) -16)
           (lsh (logand x #xFF000000) -24)))
 
-(defun md5 (str &optional case-sensitive?)
+(defun md5 (str)
   "calculate md5 sum of str parmeter"
   (interactive (list (let* ((default-str (md5-current-string))
                             (input-str (read-string (concat "md5 string(default: \"" default-str "\"):"))))
-                       (if (string= input-str "") default-str input-str))
-                     (y-or-n-p "case sensitive?")))
+                       (if (string= input-str "") default-str input-str))))
   (let* ((a0 #x67452301)
          (b0 #xefcdab89)
          (c0 #x98badcfe)
