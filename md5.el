@@ -70,7 +70,7 @@
 (defun md5-add (x &rest ys)
   (logand #xFFFFFFFF (apply '+ x ys)))
 
-(setq md5-show-debug t)
+(setq md5-show-debug nil)
 (defmacro md5-debug (str)
   (if md5-show-debug
       `(print ,str)
