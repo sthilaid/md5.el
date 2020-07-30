@@ -1,5 +1,6 @@
 
 (defun md5-current-string (&rest delimiter-list-arg)
+  "utilitary function used to find the string around the point"
   (let* ((delimiter-list (if (not delimiter-list-arg) (list ?\") delimiter-list-arg))
          (current-point (point)))
     (save-excursion
@@ -103,14 +104,9 @@
         ))
     (vector (md5-add a a0) (md5-add b b0) (md5-add c c0) (md5-add d d0))))
 
-(defun md5-bytify (n)
-  (if (<= n #xFF)
-      (cons n nil)
-    (cons (logand n #xFF)
-          (md5-bytify (lsh n -8)))))
-
 (defun md5-pad (msg)
-  (let* ((bitcount (* (length msg) 8))  ; assuming single byte characters
+  (let* ((bytified-msg (string-to-unibyte msg))
+         (bitcount (* (length bytified-msg) 8))  ; assuming single byte characters
          (bitcount-pad (list (logand bitcount #xFF)
                              (lsh (logand bitcount #xFF00) -8)
                              (lsh (logand bitcount #xFF0000) -16)
@@ -119,14 +115,11 @@
                              (lsh (logand bitcount #xFF0000000000) -40)
                              (lsh (logand bitcount #xFF000000000000) -48)
                              #x00))
-         (missing-bits (- 448 (% bitcount 512))) ; +1 for extra bit
-         )
+         (missing-bits (- 448 (% bitcount 512)))) ; +1 for extra bit
     (if (< missing-bits 0) (setq missing-bits (+ missing-bits 512)))
     (let ((pad-zeroes (make-list (/ missing-bits 8) #x00)))
       (setcar pad-zeroes #x80)
-      (append (seq-reduce 'append (mapcar (lambda (x) (seq-reverse (md5-bytify x))) msg) '())
-              pad-zeroes
-              bitcount-pad))))
+      (append bytified-msg pad-zeroes bitcount-pad))))
 
 (defun md5-inv-endian (x)
   (format "%02x%02x%02x%02x"
@@ -135,11 +128,12 @@
           (lsh (logand x #xFF0000) -16)
           (lsh (logand x #xFF000000) -24)))
 
-(defun md5 (str)
+(defun md5 (str &optional print-message?)
   "calculate md5 sum of str parmeter"
   (interactive (list (let* ((default-str (md5-current-string))
                             (input-str (read-string (concat "md5 string(default: \"" default-str "\"):"))))
-                       (if (string= input-str "") default-str input-str))))
+                       (if (string= input-str "") default-str input-str))
+                     t))
   (let* ((a0 #x67452301)
          (b0 #xefcdab89)
          (c0 #x98badcfe)
@@ -158,9 +152,10 @@
         (md5-debug (format "chunk %d: %x %x %x %x" i a0 b0 c0 d0))
         ))
     (let ((md5-hash (concat (md5-inv-endian a0) (md5-inv-endian b0) (md5-inv-endian c0) (md5-inv-endian d0))))
-      (kill-new md5-hash)
-      (message (concat md5-hash " is the md5 hash of \"" (if (< (length str) 128) str "<long-input>")
-                       "\" [copied to killring]"))
+      (if print-message?
+          (progn (kill-new md5-hash)
+                 (message (concat md5-hash " is the md5 hash of \"" (if (< (length str) 128) str "<long-input>")
+                                  "\" [copied to killring]"))))
       md5-hash)))
 
 (defun md5-file (filepath)
@@ -168,6 +163,24 @@
   (let ((message (with-temp-buffer
                    (insert-file-contents-literally filepath)
                    (buffer-string))))
-    (md5 message)))
+    (md5 message t)))
+
+(defmacro md5-test-cases (cases)
+  `(cond ,@(mapcar (lambda (case)
+                     (let ((input (car case))
+                           (expected-result (cadr case)))
+                       `((not (string= (md5 ,input) ,expected-result))
+                         (format "md5-tests failed on input: %s" ,input))))
+                   cases)
+         (t "all tests PASSED")))
+
+(defun md5-tests ()
+  (interactive)
+  (let* ((msg (md5-test-cases (("" "d41d8cd98f00b204e9800998ecf8427e")
+                               ("abc" "900150983cd24fb0d6963f7d28e17f72")
+                               ("The quick brown fox jumps over the lazy dog" "9e107d9d372bb6826bd81d3542a419d6")
+                               ("12345678901234567890123456789012345678901234567890123456789012345678901234567890"
+                                (downcase "57EDF4A22BE3C955AC49DA2E2107B67A"))))))
+    (message msg)))
 
 (provide 'md5)
