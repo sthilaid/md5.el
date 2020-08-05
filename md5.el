@@ -28,48 +28,31 @@
                                             (not prev-escape?))))
                if str-end return (buffer-substring-no-properties (+ str-start 1) str-end)))))
 
-(defun md5-s (step-index)
-  (let ((table (vector 7 12 17 22 7 12 17 22 7 12 17 22 7 12 17 22
-                       5 9 14 20 5 9 14 20 5 9 14 20 5 9 14 20
-                       4 11 16 23 4 11 16 23 4 11 16 23 4 11 16 23
-                       6 10 15 21 6 10 15 21 6 10 15 21 6 10 15 21)))
-    (elt table step-index)))
-
-(defun md5-t (step-index)
-  (floor (* (expt 2 32) (abs (sin (+ step-index 1))))))
-
-(defun md5-f (x y z)
-  (logior (logand x y)
-          (logand (lognot x) z)))
-
-(defun md5-g (x y z)
-  (logior (logand x z)
-          (logand y (lognot z))))
-
-(defun md5-h (x y z)
-  (logxor x y z))
-
-(defun md5-i (x y z)
-  (logxor y (logior x (lognot z))))
+(setq md5-s-table (vector 7 12 17 22 7 12 17 22 7 12 17 22 7 12 17 22
+                          5 9 14 20 5 9 14 20 5 9 14 20 5 9 14 20
+                          4 11 16 23 4 11 16 23 4 11 16 23 4 11 16 23
+                          6 10 15 21 6 10 15 21 6 10 15 21 6 10 15 21))
 
 (defun md5-fun (step-index x y z)
   (let ((round (/ step-index 16))
         (functions (vector 'md5-f 'md5-g 'md5-h 'md5-i)))
-    (funcall (elt functions round) x y z)))
-
-(defun md5-leftrotate (x c)
-  (logior (logand #xFFFFFFFF (lsh x c)) (lsh x (- c 32))))
+    (cond ((= round 0) (logior (logand x y) (logand (lognot x) z)))
+          ((= round 1) (logior (logand x z) (logand y (lognot z))))
+          ((= round 2) (logxor x y z))
+          ((= round 3) (logxor y (logior x (lognot z))))
+          (t (error "invalid step-index")))))
 
 (defun md5-block-index (step-index)
   (let ((round (/ step-index 16))
-        (index-funs (vector  (lambda (i) (mod i 16))
-                             (lambda (i) (mod (+ (* i 5) 1) 16))
-                             (lambda (i) (mod (+ (* i 3) 5) 16))
-                             (lambda (i) (mod (* i 7) 16)))))
-    (funcall (elt index-funs round) (mod step-index 16))))
+        (mod-index (mod step-index 16)))
+    (cond ((= round 0) mod-index)
+          ((= round 1) (mod (+ (* mod-index 5) 1) 16))
+          ((= round 2) (mod (+ (* mod-index 3) 5) 16))
+          ((= round 3) (mod (* mod-index 7) 16))
+          (t (error "invalid mod-index")))))
 
-(defun md5-add (x &rest ys)
-  (logand #xFFFFFFFF (apply '+ x ys)))
+(defmacro md5-add (x &rest ys)
+  `(logand #xFFFFFFFF (+ ,x ,@ys)))
 
 (setq md5-show-debug nil)
 (defmacro md5-debug (str)
@@ -93,14 +76,14 @@
                          (lsh (elt message (+ message-index 1)) 8)
                          (lsh (elt message (+ message-index 2)) 16)
                          (lsh (elt message (+ message-index 3)) 24)))
-             (tt (md5-t i))
-             (f (md5-add (md5-fun i b c d) a m tt))
-             (s (md5-s i)))
+             (md5-t (floor (* (expt 2 32) (abs (sin (+ i 1))))))
+             (f (md5-add (md5-fun i b c d) a m md5-t))
+             (s (elt md5-s-table i)))
         (setq a d)
         (setq d c)
         (setq c b)
-        (setq b (md5-add b (md5-leftrotate f s)))
-        ;(md5-debug (format "[%d] i: %d m_i: %X A: %X B: %X C: %X D: %X T: %X s: %d" i block-index m a b c d tt s))
+        (setq b (md5-add b (logior (logand #xFFFFFFFF (lsh f s)) (lsh f (- s 32)))))
+        ;(md5-debug (format "[%d] i: %d m_i: %X A: %X B: %X C: %X D: %X T: %X s: %d" i block-index m a b c d md5-t s))
         ))
     (vector (md5-add a a0) (md5-add b b0) (md5-add c c0) (md5-add d d0))))
 
