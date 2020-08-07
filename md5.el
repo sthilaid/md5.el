@@ -86,8 +86,8 @@
     (vector (md5-add a a0) (md5-add b b0) (md5-add c c0) (md5-add d d0))))
 
 (defun md5-pad (msg)
-  (let* ((bytified-msg (string-to-unibyte msg))
-         (bitcount (* (length bytified-msg) 8))  ; assuming single byte characters
+  (let* ((bytified-msg (encode-coding-string msg 'binary t))
+         (bitcount (* (length bytified-msg) 8)) ; assuming single byte characters
          (bitcount-pad (list (logand bitcount #xFF)
                              (lsh (logand bitcount #xFF00) -8)
                              (lsh (logand bitcount #xFF0000) -16)
