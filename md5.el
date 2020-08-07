@@ -4,7 +4,7 @@
   (let* ((delimiter-list (if (not delimiter-list-arg) (list ?\") delimiter-list-arg))
          (current-point (point)))
     (save-excursion
-      (beginning-of-buffer)
+      (goto-char (point-min))
       (cl-loop with str-start = nil
                with str-char = nil
                with str-end = nil
@@ -28,10 +28,10 @@
                                             (not prev-escape?))))
                if str-end return (buffer-substring-no-properties (+ str-start 1) str-end)))))
 
-(setq md5-s-table (vector 7 12 17 22 7 12 17 22 7 12 17 22 7 12 17 22
-                          5 9 14 20 5 9 14 20 5 9 14 20 5 9 14 20
-                          4 11 16 23 4 11 16 23 4 11 16 23 4 11 16 23
-                          6 10 15 21 6 10 15 21 6 10 15 21 6 10 15 21))
+(defvar md5-s-table (vector 7 12 17 22 7 12 17 22 7 12 17 22 7 12 17 22
+                            5 9 14 20 5 9 14 20 5 9 14 20 5 9 14 20
+                            4 11 16 23 4 11 16 23 4 11 16 23 4 11 16 23
+                            6 10 15 21 6 10 15 21 6 10 15 21 6 10 15 21))
 
 (defun md5-fun (step-index round x y z)
   (cond ((= round 0) (logior (logand x y) (logand (lognot x) z)))
